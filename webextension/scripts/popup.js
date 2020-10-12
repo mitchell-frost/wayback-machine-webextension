@@ -4,6 +4,8 @@
 /*   global isArchiveUrl, isValidUrl, makeValidURL, isNotExcludedUrl, get_clean_url, openByWindowSetting, hostURL */
 /*   global feedbackURL, newshosts, dateToTimestamp, timestampToDate, viewableTimestamp, searchValue */
 
+var cached_url_data = localStorage.getItem("url_cache");  
+
 function homepage() {
   openByWindowSetting('https://web.archive.org/')
 }
@@ -75,18 +77,25 @@ function loginSuccess() {
         $('#spn-btn').click(save_now)
         chrome.storage.local.get(['private_mode'], (event) => {
           // auto save page
-          if (!event.private_mode) {
+          /*if (!event.private_mode) {
             chrome.runtime.sendMessage({
               message: 'getLastSaveTime',
               page_url: url
             }, (message) => {
+
               if ((message.message === 'last_save') && message.timestamp) {
                 $('#spn-back-label').text('Last saved: ' + viewableTimestamp(message.timestamp))
                 $('#spn-btn').addClass('flip-inside')
               }
             })
           }
-        })
+        })*/
+            cached_url_data.forEach((value, key) => {
+              if(value === url) {
+                    $('#spn-back-label').text('Last saved: ' + viewableTimestamp(key))
+                    $('#spn-btn').addClass('flip-inside')
+                  }
+            })
       } else {
         setExcluded()
         $('#spn-back-label').text('URL not supported')

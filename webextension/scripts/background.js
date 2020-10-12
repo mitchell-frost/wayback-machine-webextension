@@ -18,6 +18,7 @@ let tabIdPromise
 var WB_API_URL = hostURL + 'wayback/available'
 var fact_checked_data = new Map()
 const SPN_RETRY = 6000
+var cached_url_data = new Map() //data to be stored here so that there are no functions for API calls. Data is retrieved from cache.
 
 var private_before_default = new Set([
   'fact-check-setting',
@@ -287,6 +288,35 @@ function getCachedFactCheck(url, onSuccess, onFail) {
   }
 }
 
+function loadingCacheData() {
+      chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
+        if(info.status == 'loading') {
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            let url = searchValue || get_clean_url(tabs[0].url)
+            chrome.storage.local.get(['private_mode'], (event) => {
+              // auto save page
+              if (!event.private_mode) {
+                chrome.runtime.sendMessage({
+                  message: 'getLastSaveTime',
+                  page_url: url
+                }, (message) => {
+                  if (message.message === 'last_save') {
+                      if (cached_url_data.size > 10) {
+                        let first_key = cached_url_data.entries().next().value[0]
+                        cached_url_data.delete(first_key)
+                      }
+                    cached_url_data.set(url, message.timestamp)
+                  }
+                })
+              }
+            })
+          })
+        }
+      }
+    )}
+
+localStorage.setItem("url_cache", cached_url_data); 
+
 /* * * Startup related * * */
 
 // Runs whenever extension starts up, except during incognito mode.
@@ -527,6 +557,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
   if (info.status === 'complete') {
     updateWaybackCountBadge(tab, tab.url)
+    loadingCacheData();
     chrome.storage.local.get(['auto_archive', 'fact_check'], (event) => {
       // auto save page
       if (event.auto_archive === true) {
